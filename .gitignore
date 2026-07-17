@@ -1,3 +1,7 @@
 /target
 *.deb
 .cargo/config.toml
+
+/docs/compose
+/.mimocode
+mimocode.json

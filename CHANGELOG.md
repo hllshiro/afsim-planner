@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **种子各向异性噪声扰动** — 将 seed 注入 A* 启发式函数，通过 FNV-1a 哈希生成确定性空间阻力场，不同种子产生拓扑分流的航线，支持多机协同攻击时的平行互不干扰航线生成
+
+### Changed
+
+- **种子确定性平局决断** — 当 f-score 相等时使用 seed 派生的噪声权重稳定排序，确保跨平台完全一致的路径复现
+
 ## [0.3.0] — 2026-07-17
 
 ### Added

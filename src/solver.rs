@@ -7,6 +7,31 @@ use crate::config::{
 use crate::geometry::{self, BoundingCorridor};
 
 // ============================================================================
+// Seed-based noise perturbation (FNV-1a hash)
+// ============================================================================
+
+/// FNV-1a 64-bit hash mixing grid index with seed → deterministic [0.0, 1.0).
+/// Produces a spatially-smooth anisotropic noise field that is consistent
+/// across platforms and completely determined by (ix, iy, iz, seed).
+#[inline(always)]
+fn coordinate_noise(ix: i64, iy: i64, iz: i64, seed: u64) -> f64 {
+    const FNV_PRIME: u64 = 0x00000100000001B3;
+    const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+
+    let mut hash = FNV_OFFSET_BASIS;
+    hash ^= seed;
+    hash = hash.wrapping_mul(FNV_PRIME);
+    for &val in &[ix, iy, iz] {
+        hash ^= val as u64;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+
+    // Map high 53 bits into [0.0, 1.0) without expensive division
+    let bits = (hash >> 11) | 0x3FF0000000000000;
+    f64::from_bits(bits) - 1.0
+}
+
+// ============================================================================
 // A* node
 // ============================================================================
 
@@ -16,11 +41,13 @@ struct Node {
     g_score: f64,
     f_score: f64,
     parent_index: Option<usize>,
+    /// Cached noise for deterministic tie-breaking when f_scores are equal
+    noise_weight: f64,
 }
 
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
-        self.f_score == other.f_score
+        self.f_score == other.f_score && self.noise_weight == other.noise_weight
     }
 }
 impl Eq for Node {}
@@ -32,6 +59,13 @@ impl Ord for Node {
             .f_score
             .partial_cmp(&self.f_score)
             .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                // Deterministic tie-break via seed-derived noise weight
+                other
+                    .noise_weight
+                    .partial_cmp(&self.noise_weight)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 }
 impl PartialOrd for Node {
@@ -51,6 +85,10 @@ pub struct AStarSolver {
     pub grid_resolution: f64,
     pub max_calculation_time_ms: Option<u64>,
     pub seed: u64,
+    /// Perturbation strength applied to heuristic (0.02–0.05).
+    /// Different seeds produce different anisotropic "resistance fields",
+    /// yielding topologically distinct but equally optimal paths.
+    pub perturbation_strength: f64,
 }
 
 impl AStarSolver {
@@ -60,6 +98,7 @@ impl AStarSolver {
         grid_resolution: f64,
         max_calculation_time_ms: Option<u64>,
         seed: u64,
+        perturbation_strength: f64,
     ) -> Self {
         Self {
             profile,
@@ -68,6 +107,7 @@ impl AStarSolver {
             grid_resolution,
             max_calculation_time_ms,
             seed,
+            perturbation_strength,
         }
     }
 
@@ -89,6 +129,10 @@ impl AStarSolver {
             g_score: 0.0,
             f_score: start.distance_to(&target),
             parent_index: None,
+            noise_weight: {
+                let (sx, sy, sz) = self.to_grid_key(start);
+                coordinate_noise(sx, sy, sz, self.seed)
+            },
         };
         open_set.push(start_node);
         node_pool.push(start_node);
@@ -136,7 +180,8 @@ impl AStarSolver {
             closed_set.insert(grid_key, node_pool.len() - 1);
 
             for neighbor_pos in self.get_neighbors(current.position) {
-                if closed_set.contains_key(&self.to_grid_key(neighbor_pos)) {
+                let grid_key = self.to_grid_key(neighbor_pos);
+                if closed_set.contains_key(&grid_key) {
                     continue;
                 }
 
@@ -162,14 +207,18 @@ impl AStarSolver {
 
                 let tentative_g =
                     current.g_score + current.position.distance_to(&neighbor_pos);
-                let h_score = self.heuristic(neighbor_pos, target);
-                let f_score = tentative_g + active_weight * h_score;
+                // Perturbed heuristic: seed-driven anisotropic noise breaks symmetry
+                let raw_h = neighbor_pos.distance_to(&target);
+                let noise = coordinate_noise(grid_key.0, grid_key.1, grid_key.2, self.seed);
+                let perturbed_h = raw_h * (1.0 + self.perturbation_strength * noise);
+                let f_score = tentative_g + active_weight * perturbed_h;
 
                 let neighbor_node = Node {
                     position: neighbor_pos,
                     g_score: tentative_g,
                     f_score,
                     parent_index: Some(self.find_node_index(&current, &node_pool)),
+                    noise_weight: noise,
                 };
 
                 open_set.push(neighbor_node);
@@ -202,11 +251,6 @@ impl AStarSolver {
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
-
-    /// Euclidean distance heuristic (consistent & admissible).
-    fn heuristic(&self, a: Point3D, b: Point3D) -> f64 {
-        a.distance_to(&b)
-    }
 
     /// Discretize a 3D point to an integer grid key.
     fn to_grid_key(&self, p: Point3D) -> (i64, i64, i64) {

@@ -67,6 +67,7 @@ fn main() {
         grid_resolution,
         input.session.max_calculation_time_ms,
         final_seed,
+        0.03, // perturbation_strength: 3% noise creates seed-dependent anisotropic routing
     );
 
     // 6. Build ordered waypoint list for segmented planning
