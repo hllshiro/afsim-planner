@@ -1,13 +1,10 @@
 use std::collections::{BinaryHeap, HashMap};
 use std::time::Instant;
 
-use rand::rngs::StdRng;
-use rand::SeedableRng;
-
 use crate::config::{
     Environment, NoFlyZone, Point3D, RadarThreat, VehicleProfile,
 };
-use crate::geometry;
+use crate::geometry::{self, BoundingCorridor};
 
 // ============================================================================
 // A* node
@@ -74,13 +71,12 @@ impl AStarSolver {
         }
     }
 
-    /// Solve a single segment from `start` to `target`, respecting initial heading.
-    /// Returns (path, nodes_explored) on success.
-    pub fn solve_segment(
+    /// Core A* search. `corridor_radius` constrains search space; `None` means unconstrained.
+    fn search_impl(
         &self,
         start: Point3D,
         target: Point3D,
-        _initial_heading: f64,
+        corridor_radius: Option<f64>,
     ) -> Result<(Vec<Point3D>, u64), String> {
         let t0 = Instant::now();
 
@@ -88,10 +84,6 @@ impl AStarSolver {
         let mut closed_set: HashMap<(i64, i64, i64), usize> = HashMap::new();
         let mut node_pool: Vec<Node> = Vec::new();
 
-        // Seed-based RNG for deterministic tie-breaking (reserved for future use)
-        let _rng = StdRng::seed_from_u64(self.seed);
-
-        // Start node
         let start_node = Node {
             position: start,
             g_score: 0.0,
@@ -102,23 +94,22 @@ impl AStarSolver {
         node_pool.push(start_node);
 
         let mut nodes_explored: u64 = 0;
-
-        // Progress-stagnation monitor: detects greedy traps and auto-relaxes heuristic
         let mut min_h = start.distance_to(&target);
         let mut stagnation_count: usize = 0;
         let mut active_weight: f64 = 1.5;
 
+        let corridor = corridor_radius
+            .map(|r| BoundingCorridor::from_segment(start, target, r));
+
         while let Some(current) = open_set.pop() {
             nodes_explored += 1;
-            // Time budget check
             if let Some(max_ms) = self.max_calculation_time_ms {
                 if t0.elapsed().as_millis() as u64 > max_ms {
                     return Err("ROUTE_GENERATION_FAILED: Max calculation time exceeded.".into());
                 }
             }
 
-            // --- Greedy-trap detection: if h-score hasn't improved for N expansions,
-            //     drop weight to 1.0 (standard A*) to force outward exploration ---
+            // Stagnation monitor
             let current_h = current.position.distance_to(&target);
             if current_h < min_h {
                 min_h = current_h;
@@ -131,10 +122,9 @@ impl AStarSolver {
                 active_weight = 1.0;
             }
 
-            // Termination: within one grid cell of target
+            // Termination
             if current.position.distance_to(&target) <= self.grid_resolution {
                 let mut path = self.reconstruct_path(&current, &node_pool);
-                // Ensure the target is included as final waypoint
                 path.push(target);
                 return Ok((path, nodes_explored));
             }
@@ -150,12 +140,17 @@ impl AStarSolver {
                     continue;
                 }
 
-                // Kinematic pruning
+                // Corridor prune — first filter (cheapest check)
+                if let Some(ref cor) = corridor {
+                    if !cor.is_inside(&neighbor_pos) {
+                        continue;
+                    }
+                }
+
                 if !self.check_kinematics(&current, neighbor_pos, &node_pool) {
                     continue;
                 }
 
-                // Collision detection
                 if geometry::segment_vs_environment(
                     [current.position.0, current.position.1, current.position.2],
                     [neighbor_pos.0, neighbor_pos.1, neighbor_pos.2],
@@ -183,6 +178,25 @@ impl AStarSolver {
         }
 
         Err("ROUTE_GENERATION_FAILED: No valid path found under constraints.".into())
+    }
+
+    /// Solve a single segment from `start` to `target`, respecting initial heading.
+    /// Returns (path, nodes_explored) on success.
+    ///
+    /// Two-stage strategy: first try with 5000m corridor constraint; if no path is
+    /// found, fall back to unconstrained search.
+    pub fn solve_segment(
+        &self,
+        start: Point3D,
+        target: Point3D,
+        _initial_heading: f64,
+    ) -> Result<(Vec<Point3D>, u64), String> {
+        // Stage 1: constrained search within 5000m corridor
+        if let Ok(result) = self.search_impl(start, target, Some(5000.0)) {
+            return Ok(result);
+        }
+        // Stage 2: fallback — unconstrained search
+        self.search_impl(start, target, None)
     }
 
     // ------------------------------------------------------------------
