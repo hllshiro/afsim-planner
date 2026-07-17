@@ -2,7 +2,6 @@
 set -e
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-BINARY="$ROOT/target/release/afsim-planner"
 
 echo "==> Building afsim-planner CLI..."
 cargo build --release -p afsim-planner
@@ -26,6 +25,9 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "==> Starting frontend dev server on :5173..."
+echo "==> Installing frontend dependencies..."
 cd "$ROOT/web"
+pnpm install
+
+echo "==> Starting frontend dev server on :5173..."
 pnpm dev
