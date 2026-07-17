@@ -1,12 +1,3 @@
-[package]
-name = "afsim-planner"
-version = "0.4.0"
-edition = "2021"
-description = "AFSIM pre-mission 3D route planning CLI engine with deterministic A* and kinematic pruning"
-repository = "https://github.com/hllshiro/afsim-planner"
-license = "MIT"
-
-[dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-rand = "0.8"
+[workspace]
+members = ["afsim-planner", "server"]
+resolver = "2"
