@@ -6,3 +6,4 @@
 /.mimocode
 mimocode.json
 /web/node_modules
+/web/dist
