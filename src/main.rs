@@ -6,6 +6,7 @@ use rand::Rng;
 mod config;
 mod error;
 mod geometry;
+mod macro_router;
 mod solver;
 
 use config::{
