@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-07-17
+
+### Added
+
+- **长距离分级路径搜索** — 起终点超过 10km 且无用户控制点时，自动通过宏观拓扑路由生成中间导航点，将单段长距离 A* 拆分为多段短距离搜索，消除 O(N³) 维度灾难
+
+### Changed
+
+- **100km+ 密集障碍物绕行性能跃升** — 10km 半径多雷达场景从超时（>10s）降至 3-10ms，提升约 1000x
+
+### Known limitations
+
+- `TargetZone.radius` 未用于提前终止（目前以 target center 的一个网格分辨率距离为终止条件）
+
 ## [0.2.0] — 2026-07-17
 
 ### Added
@@ -38,5 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 单段超长距离（>50km）遇穿廊障碍时仍可能触发无约束搜索回退导致超时；建议通过 control_waypoints 分段化解
 - `TargetZone.radius` not yet used for early termination (currently terminates within one grid cell of target center)
 
+[0.3.0]: https://github.com/hllshiro/afsim-planner/releases/tag/v0.3.0
 [0.2.0]: https://github.com/hllshiro/afsim-planner/releases/tag/v0.2.0
 [0.1.0]: https://github.com/hllshiro/afsim-planner/releases/tag/v0.1.0

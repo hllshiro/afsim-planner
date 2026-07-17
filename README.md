@@ -2,11 +2,12 @@
 
 [![CI](https://github.com/hllshiro/afsim-planner/actions/workflows/release.yml/badge.svg)](https://github.com/hllshiro/afsim-planner/actions/workflows/release.yml)
 
-**AFSIM 战前部署 3D 航路规划 CLI 引擎** — 专为 AFSIM（Advanced Framework for Simulation, Integration, and Modeling）战前静态筹划场景设计的轻量级、确定性三维避障航路规划工具。安全飞行走廊 + 加权 A* 双层架构，百公里级直航毫秒级响应。通过标准输入输出 JSON 管道与前端标绘系统集成。
+**AFSIM 战前部署 3D 航路规划 CLI 引擎** — 专为 AFSIM（Advanced Framework for Simulation, Integration, and Modeling）战前静态筹划场景设计的轻量级、确定性三维避障航路规划工具。宏观拓扑路由 + 安全飞行走廊 + 加权 A* 三层分级架构，百公里级密集障碍绕行毫秒级响应。通过标准输入输出 JSON 管道与前端标绘系统集成。
 
 ## 特性
 
-- **安全飞行走廊搜索剪枝** — 将 A* 搜索空间约束在起点至终点的胶囊管道内，百公里级搜索节点数精确控制在 ～n 个（n = 网格格长），消除 O(N³) 维度灾难
+- **长距离分级路径搜索** — 起终点超过 10km 且无用户控制点时，宏观拓扑路由器自动分析障碍物 AABB 可见性图，生成中间导航点，将单段长距离 A* 拆分为多段短距离搜索
+- **安全飞行走廊搜索剪枝** — 将 A* 搜索空间约束在分段胶囊管道内，百公里级搜索节点数精确控制在 ～n 个（n = 网格格长），消除 O(N³) 维度灾难
 - **确定性 3D 加权 A\* 搜索** — 26 向隐式稀疏网格 + 欧氏距离启发式，相同种子 100% 可复现
 - **进度停滞-权重动态衰减** — 实时监控 h-score 改善率，检测到 U 型口袋阵（贪婪陷阱）时自动将启发式权重从 1.5 熔断至 1.0，实现无痛绕行
 - **运动学剪枝** — 最大转弯角 + 爬升角约束在节点扩展时即时过滤，确保输出航线可被 AFSIM Mover 执行
@@ -137,11 +138,12 @@ echo '{
 
 ```
 src/
-├── main.rs      # stdin/stdout 管道 + 种子管理 + 分段编排 + 抽稀
-├── error.rs     # 错误码定义
-├── config.rs    # 输入/输出 JSON 数据契约 + 3D 向量基元
-├── geometry.rs  # 空间碰撞检测 + 安全飞行走廊（AABB/Capsule 管道）
-└── solver.rs    # 3D 加权 A* 引擎（走廊剪枝 + 运动学剪枝 + 停滞检测 + 航点抽稀）
+├── main.rs         # stdin/stdout 管道 + 种子管理 + 分段编排 + 宏观路由触发
+├── error.rs        # 错误码定义
+├── config.rs       # 输入/输出 JSON 数据契约 + 3D 向量基元
+├── geometry.rs     # 空间碰撞检测 + 安全飞行走廊 + 快速射线-AABB 求交
+├── macro_router.rs # 宏观拓扑路由（障碍物膨胀 → 可见性图 A* → 中间控制点）
+└── solver.rs       # 3D 加权 A* 引擎（走廊剪枝 + 运动学剪枝 + 停滞检测 + 航点抽稀）
 ```
 
 ## 性能
@@ -149,12 +151,12 @@ src/
 | 场景 | 耗时 | 节点数 |
 |------|------|--------|
 | 100km 直线，零威胁 | 3.0 ms | 572 |
-| 100km + 高墙绕障，分段路点导引 | 1.9 ms | 574 |
-| 20km + 密集障碍物（典型战术场景） | <40 ms | ~4,000 |
+| 100km + 10km半径雷达 ×3（自动分级） | 3.4 ms | 642 |
+| 100km + 10km半径雷达 ×3 错位（自动分级） | 9.8 ms | 2,799 |
+| 100km + 10km半径雷达 ×4 蛇形（自动分级） | 2.8 ms | 718 |
 
 ## 已知限制
 
-- 单段超长距离（>50km）遇穿廊障碍物时，走廊内无可行路径会回退到无约束搜索，建议通过 `control_waypoints` 分段化解
 - `TargetZone.radius` 未用于提前终止（目前以 target center 的一个网格分辨率距离为终止条件）
 
 ## License
