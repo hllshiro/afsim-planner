@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **安全飞行走廊搜索空间剪枝** — A* 搜索限定在起点至终点的胶囊管道内，大幅缩减节点展开数，百公里级直线计算降至毫秒级
+
+### Changed
+
+- **缓解长距离超时问题** — 配合分段规划，100km 绕障计算从超时降至 2ms 以内
+
 ## [0.1.0] — 2026-07-17
 
 ### Added
@@ -25,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known limitations
 
-- A\* search may exceed time budget on long-range routes (>20 km) with dense obstacles at current grid resolution
+- 单段超长距离（>50km）遇穿廊障碍时仍可能触发无约束搜索回退导致超时；建议通过 control_waypoints 分段化解
 - `TargetZone.radius` not yet used for early termination (currently terminates within one grid cell of target center)
 
 [0.1.0]: https://github.com/hllshiro/afsim-planner/releases/tag/v0.1.0
