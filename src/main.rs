@@ -80,8 +80,23 @@ fn main() {
         input.route_definition.target.center[1],
         input.route_definition.target.center[2],
     );
-    let mut headings = input.route_definition.start_state.heading_deg;
+    // 自动宏观路由：当用户未提供 control_waypoints 且起终点距离超过阈值时触发
+    let macro_threshold: f64 = 10_000.0; // 10km
+    let auto_waypoints: Vec<Point3D> = if input.route_definition.control_waypoints.is_empty()
+        && start.distance_2d(&target_center) > macro_threshold
+    {
+        let safety_margin = input.vehicle.min_turn_radius * 2.0;
+        let router = macro_router::MacroRouter::new(
+            &input.environment.radars,
+            &input.environment.no_fly_zones,
+            safety_margin,
+        );
+        router.plan(start, target_center)
+    } else {
+        Vec::new()
+    };
 
+    let mut headings = input.route_definition.start_state.heading_deg;
     let mut full_path: Vec<Point3D> = Vec::new();
     let mut total_nodes_explored: u64 = 0;
     let mut max_climb_utilized = 0.0;
@@ -89,25 +104,27 @@ fn main() {
     let mut segment_endpoints: Vec<(Point3D, Point3D)> = Vec::new();
     {
         let wpts = &input.route_definition.control_waypoints;
-        if wpts.is_empty() {
-            // Direct: start -> target
+        if wpts.is_empty() && auto_waypoints.is_empty() {
+            // 直接段：start -> target
             segment_endpoints.push((start, target_center));
         } else {
+            let ordered_wpts: Vec<Point3D> = if !wpts.is_empty() {
+                wpts
+                    .iter()
+                    .map(|w| Point3D(w[0], w[1], w[2]))
+                    .collect()
+            } else {
+                auto_waypoints
+            };
             // start -> wpt[0]
-            segment_endpoints.push((start, Point3D(wpts[0][0], wpts[0][1], wpts[0][2])));
+            segment_endpoints.push((start, ordered_wpts[0]));
             // intermediate wpts
-            for i in 1..wpts.len() {
-                let prev = Point3D(wpts[i - 1][0], wpts[i - 1][1], wpts[i - 1][2]);
-                let next = Point3D(wpts[i][0], wpts[i][1], wpts[i][2]);
-                segment_endpoints.push((prev, next));
+            for i in 1..ordered_wpts.len() {
+                segment_endpoints.push((ordered_wpts[i - 1], ordered_wpts[i]));
             }
             // last wpt -> target
-            let last_wpt = Point3D(
-                wpts[wpts.len() - 1][0],
-                wpts[wpts.len() - 1][1],
-                wpts[wpts.len() - 1][2],
-            );
-            segment_endpoints.push((last_wpt, target_center));
+            segment_endpoints
+                .push((ordered_wpts[ordered_wpts.len() - 1], target_center));
         }
     }
 
