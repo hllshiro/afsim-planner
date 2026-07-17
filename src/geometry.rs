@@ -205,6 +205,28 @@ impl AABB {
             && p.2 >= self.min.2
             && p.2 <= self.max.2
     }
+
+    /// Williams 变体 Fast Ray-Box 求交 (线段约束版)
+    /// 返回 true 当射线 [origin, origin+dir] 与 AABB 有交集
+    #[inline]
+    pub fn intersects_segment(&self, ray: &PreparedSegment) -> bool {
+        let tx1 = (self.min.0 - ray.origin.0) * ray.inv_dir.0;
+        let tx2 = (self.max.0 - ray.origin.0) * ray.inv_dir.0;
+        let mut tmin = tx1.min(tx2);
+        let mut tmax = tx1.max(tx2);
+
+        let ty1 = (self.min.1 - ray.origin.1) * ray.inv_dir.1;
+        let ty2 = (self.max.1 - ray.origin.1) * ray.inv_dir.1;
+        tmin = tmin.max(ty1.min(ty2));
+        tmax = tmax.min(ty1.max(ty2));
+
+        let tz1 = (self.min.2 - ray.origin.2) * ray.inv_dir.2;
+        let tz2 = (self.max.2 - ray.origin.2) * ray.inv_dir.2;
+        tmin = tmin.max(tz1.min(tz2));
+        tmax = tmax.min(tz1.max(tz2));
+
+        tmax >= tmin && tmin <= 1.0 && tmax >= 0.0
+    }
 }
 
 /// Capsule-shaped corridor segment: cylinder + spherical caps around [start, end].
@@ -265,6 +287,41 @@ impl BoundingCorridor {
     #[inline]
     pub fn is_inside(&self, p: &Point3D) -> bool {
         self.segments.iter().any(|seg| seg.contains(p))
+    }
+}
+
+// ============================================================================
+// PreparedSegment — Williams 倒数法射线 (macro routing 加速原语)
+// ============================================================================
+
+/// 预计算线段：保存起点和方向倒数，加速 AABB 求交
+pub struct PreparedSegment {
+    pub origin: Point3D,
+    pub inv_dir: Point3D,
+}
+
+impl PreparedSegment {
+    pub fn new(start: Point3D, end: Point3D) -> Self {
+        let mut dx = end.0 - start.0;
+        let mut dy = end.1 - start.1;
+        let mut dz = end.2 - start.2;
+
+        // 防止与坐标轴平行时产生 NaN (0.0 / 0.0)
+        let epsilon = 1e-12_f64;
+        if dx.abs() < epsilon {
+            dx = epsilon.copysign(dx);
+        }
+        if dy.abs() < epsilon {
+            dy = epsilon.copysign(dy);
+        }
+        if dz.abs() < epsilon {
+            dz = epsilon.copysign(dz);
+        }
+
+        Self {
+            origin: start,
+            inv_dir: Point3D(1.0 / dx, 1.0 / dy, 1.0 / dz),
+        }
     }
 }
 
@@ -360,5 +417,72 @@ mod tests {
         );
         assert!(bc.is_inside(&Point3D(50.0, 10.0, 0.0)));
         assert!(!bc.is_inside(&Point3D(50.0, 200.0, 0.0)));
+    }
+
+    // ====================================================================
+    // PreparedSegment / AABB ray intersection tests
+    // ====================================================================
+
+    #[test]
+    fn test_prepared_segment_hit_full_intersection() {
+        let aabb = AABB {
+            min: Point3D(0.0, 0.0, 0.0),
+            max: Point3D(10.0, 10.0, 10.0),
+        };
+        let ray = PreparedSegment::new(Point3D(-5.0, 5.0, 5.0), Point3D(15.0, 5.0, 5.0));
+        assert!(aabb.intersects_segment(&ray));
+    }
+
+    #[test]
+    fn test_prepared_segment_hit_axis_aligned_x() {
+        let aabb = AABB {
+            min: Point3D(0.0, 0.0, 0.0),
+            max: Point3D(10.0, 10.0, 10.0),
+        };
+        let ray = PreparedSegment::new(Point3D(-2.0, 5.0, 5.0), Point3D(12.0, 5.0, 5.0));
+        assert!(aabb.intersects_segment(&ray));
+    }
+
+    #[test]
+    fn test_prepared_segment_miss_outside() {
+        let aabb = AABB {
+            min: Point3D(0.0, 0.0, 0.0),
+            max: Point3D(10.0, 10.0, 10.0),
+        };
+        let ray = PreparedSegment::new(Point3D(5.0, 20.0, 5.0), Point3D(5.0, 30.0, 5.0));
+        assert!(!aabb.intersects_segment(&ray));
+    }
+
+    #[test]
+    fn test_prepared_segment_miss_short_segment_nearby() {
+        let aabb = AABB {
+            min: Point3D(0.0, 0.0, 0.0),
+            max: Point3D(10.0, 10.0, 10.0),
+        };
+        // 线段完全在 AABB 外部且不穿过
+        let ray =
+            PreparedSegment::new(Point3D(15.0, 15.0, 15.0), Point3D(16.0, 16.0, 16.0));
+        assert!(!aabb.intersects_segment(&ray));
+    }
+
+    #[test]
+    fn test_prepared_segment_hit_segment_inside_aabb() {
+        let aabb = AABB {
+            min: Point3D(0.0, 0.0, 0.0),
+            max: Point3D(10.0, 10.0, 10.0),
+        };
+        let ray = PreparedSegment::new(Point3D(2.0, 2.0, 2.0), Point3D(8.0, 8.0, 8.0));
+        assert!(aabb.intersects_segment(&ray));
+    }
+
+    #[test]
+    fn test_prepared_segment_hit_endpoint_on_surface() {
+        let aabb = AABB {
+            min: Point3D(0.0, 0.0, 0.0),
+            max: Point3D(10.0, 10.0, 10.0),
+        };
+        let ray =
+            PreparedSegment::new(Point3D(-5.0, 5.0, 5.0), Point3D(0.0, 5.0, 5.0));
+        assert!(aabb.intersects_segment(&ray));
     }
 }
