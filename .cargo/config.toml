@@ -1,8 +1,0 @@
-[build]
-rustflags = ["-L", "/home/hllshiro/.local/gcc/usr/lib/x86_64-linux-gnu", "-C", "link-arg=-L/home/hllshiro/.local/gcc/usr/lib/x86_64-linux-gnu"]
-
-[env]
-CC = "/home/hllshiro/.local/gcc/usr/bin/gcc-11"
-
-[target.x86_64-unknown-linux-gnu]
-linker = "/home/hllshiro/.local/gcc/usr/bin/gcc-11"
