@@ -83,7 +83,6 @@ fn main() {
 
     let mut full_path: Vec<Point3D> = Vec::new();
     let mut total_nodes_explored: u64 = 0;
-    let mut total_length = 0.0;
     let mut max_climb_utilized = 0.0;
 
     let mut segment_endpoints: Vec<(Point3D, Point3D)> = Vec::new();
@@ -138,6 +137,9 @@ fn main() {
             }
         };
 
+        // Prune A* grid artifacts from this segment (preserves segment boundaries)
+        let seg_path = solver.prune_waypoints(&seg_path);
+
         // Update heading from the last two points of the segment
         if seg_path.len() >= 2 {
             let last = seg_path[seg_path.len() - 1];
@@ -153,14 +155,13 @@ fn main() {
             full_path.push(*pt);
         }
 
-        // Accumulate length
-        for i in start_offset..seg_path.len() {
-            if i > 0 {
-                total_length += seg_path[i].distance_to(&seg_path[i - 1]);
-            }
-        }
-
         total_nodes_explored += seg_nodes_explored;
+    }
+
+    // Compute total length from the (per-segment-pruned) path
+    let mut total_length = 0.0_f64;
+    for i in 1..full_path.len() {
+        total_length += full_path[i].distance_to(&full_path[i - 1]);
     }
 
     let calc_time = t0.elapsed().as_secs_f64() * 1000.0;

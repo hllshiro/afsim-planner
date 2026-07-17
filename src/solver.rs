@@ -103,6 +103,11 @@ impl AStarSolver {
 
         let mut nodes_explored: u64 = 0;
 
+        // Progress-stagnation monitor: detects greedy traps and auto-relaxes heuristic
+        let mut min_h = start.distance_to(&target);
+        let mut stagnation_count: usize = 0;
+        let mut active_weight: f64 = 1.5;
+
         while let Some(current) = open_set.pop() {
             nodes_explored += 1;
             // Time budget check
@@ -110,6 +115,20 @@ impl AStarSolver {
                 if t0.elapsed().as_millis() as u64 > max_ms {
                     return Err("ROUTE_GENERATION_FAILED: Max calculation time exceeded.".into());
                 }
+            }
+
+            // --- Greedy-trap detection: if h-score hasn't improved for N expansions,
+            //     drop weight to 1.0 (standard A*) to force outward exploration ---
+            let current_h = current.position.distance_to(&target);
+            if current_h < min_h {
+                min_h = current_h;
+                stagnation_count = 0;
+                active_weight = 1.5;
+            } else {
+                stagnation_count += 1;
+            }
+            if stagnation_count > 120 {
+                active_weight = 1.0;
             }
 
             // Termination: within one grid cell of target
@@ -149,7 +168,7 @@ impl AStarSolver {
                 let tentative_g =
                     current.g_score + current.position.distance_to(&neighbor_pos);
                 let h_score = self.heuristic(neighbor_pos, target);
-                let f_score = tentative_g + h_score;
+                let f_score = tentative_g + active_weight * h_score;
 
                 let neighbor_node = Node {
                     position: neighbor_pos,
@@ -272,5 +291,101 @@ impl AStarSolver {
         }
         path.reverse();
         path
+    }
+
+    // ------------------------------------------------------------------
+    // Waypoint pruning (path shortcutter)
+    // ------------------------------------------------------------------
+
+    /// Check if a straight-line segment collides with any environmental obstacle.
+    pub fn is_colliding(&self, from: Point3D, to: Point3D) -> bool {
+        geometry::segment_vs_environment(
+            [from.0, from.1, from.2],
+            [to.0, to.1, to.2],
+            &self.radars,
+            &self.nfz_list,
+        )
+    }
+
+    /// Kinematic constraint check for a straight-line segment between two waypoints.
+    /// `incoming` is the waypoint preceding `from` (used for turn-angle check).
+    fn check_segment_kinematics(
+        &self,
+        incoming: Option<Point3D>,
+        from: Point3D,
+        to: Point3D,
+    ) -> bool {
+        // Climb angle
+        let delta_z = (to.2 - from.2).abs();
+        let dist_2d = from.distance_2d(&to);
+        if dist_2d > 0.0 {
+            let climb_angle = (delta_z / dist_2d).atan().to_degrees();
+            if climb_angle > self.profile.max_climb_angle {
+                return false;
+            }
+        }
+
+        // Turn angle: check the bend at `from` between incoming and outgoing direction
+        if let Some(prev) = incoming {
+            let vec1 = (from.0 - prev.0, from.1 - prev.1);
+            let vec2 = (to.0 - from.0, to.1 - from.1);
+
+            let dot = vec1.0 * vec2.0 + vec1.1 * vec2.1;
+            let len1 = (vec1.0.powi(2) + vec1.1.powi(2)).sqrt();
+            let len2 = (vec2.0.powi(2) + vec2.1.powi(2)).sqrt();
+
+            if len1 > 0.0 && len2 > 0.0 {
+                let angle = (dot / (len1 * len2)).acos().to_degrees();
+                if angle > self.profile.max_turn_angle_deg {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+
+    /// Greedy double-pointer waypoint pruning.
+    ///
+    /// Eliminates redundant collinear grid points from an A* path by trying to
+    /// "shortcut" from each waypoint to the furthest reachable waypoint that
+    /// is collision-free and kinematically valid. Reduces hundreds of grid
+    /// points down to a handful of critical maneuver waypoints.
+    pub fn prune_waypoints(&self, raw_path: &[Point3D]) -> Vec<Point3D> {
+        if raw_path.len() <= 2 {
+            return raw_path.to_vec();
+        }
+
+        let mut pruned: Vec<Point3D> = Vec::new();
+        pruned.push(raw_path[0]);
+
+        let mut start_idx = 0;
+        while start_idx < raw_path.len() - 1 {
+            let mut best_target_idx = start_idx + 1;
+
+            for test_idx in (start_idx + 2)..raw_path.len() {
+                let from = raw_path[start_idx];
+                let to = raw_path[test_idx];
+
+                let incoming = if pruned.len() >= 2 {
+                    Some(pruned[pruned.len() - 2])
+                } else {
+                    None
+                };
+
+                if !self.is_colliding(from, to)
+                    && self.check_segment_kinematics(incoming, from, to)
+                {
+                    best_target_idx = test_idx;
+                } else {
+                    break;
+                }
+            }
+
+            pruned.push(raw_path[best_target_idx]);
+            start_idx = best_target_idx;
+        }
+
+        pruned
     }
 }

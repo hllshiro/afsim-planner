@@ -1,13 +1,25 @@
-name: Production Cross-Platform Release CI/CD
+name: Build & Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
 
 jobs:
-  build-and-deploy:
-    name: Compile and Release for ${{ matrix.target }}
+  ci:
+    name: CI (build + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: cargo test --release
+
+  release:
+    name: Release ${{ matrix.artifact_name }}
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -15,36 +27,28 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             artifact_name: afsim-planner
-            use_cross: true
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: afsim-planner.exe
-            use_cross: false
 
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Stable Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Execute High-Performance Compilation
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: ${{ matrix.use_cross }}
-          command: build
-          args: --release --target ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Optimize and Strip Binary (Linux Only)
+      - name: Strip (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get install -y musl-tools
+          sudo apt-get update && sudo apt-get install -y musl-tools
           strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
-      - name: Upload Build Artifact to Release Assets
-        uses: softprops/action-gh-release@v1
+      - name: Upload artifact
+        uses: softprops/action-gh-release@v2
         with:
           files: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
         env:
