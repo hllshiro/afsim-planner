@@ -134,7 +134,7 @@ export function ControlPanel({
 
   return (
     <div>
-      <h2>AFSIM Planner</h2>
+      <h2>Simple Router Planner</h2>
 
       {/* Click mode toggle */}
       <h3>场景操作</h3>

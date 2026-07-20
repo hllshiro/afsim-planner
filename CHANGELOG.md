@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **项目重命名** — afsim-planner → simple-router-planner，CLI 二进制 cli → rplan-cli
+
 - **重组项目目录结构** — 将demo代码从根目录移入 `demo/`，更新workspace配置和文档路径
 
 - **完善 AGENTS.md** — 新增构建注意事项、宏路由触发阈值和mimocode workflow命令说明
@@ -70,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 单段超长距离（>50km）遇穿廊障碍时仍可能触发无约束搜索回退导致超时；建议通过 control_waypoints 分段化解
 - `TargetZone.radius` not yet used for early termination (currently terminates within one grid cell of target center)
 
-[0.4.0]: https://github.com/hllshiro/afsim-planner/releases/tag/v0.4.0
-[0.3.0]: https://github.com/hllshiro/afsim-planner/releases/tag/v0.3.0
-[0.2.0]: https://github.com/hllshiro/afsim-planner/releases/tag/v0.2.0
-[0.1.0]: https://github.com/hllshiro/afsim-planner/releases/tag/v0.1.0
+[0.4.0]: https://github.com/hllshiro/simple-router-planner/releases/tag/v0.4.0
+[0.3.0]: https://github.com/hllshiro/simple-router-planner/releases/tag/v0.3.0
+[0.2.0]: https://github.com/hllshiro/simple-router-planner/releases/tag/v0.2.0
+[0.1.0]: https://github.com/hllshiro/simple-router-planner/releases/tag/v0.1.0

@@ -4,7 +4,7 @@ set -e
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 echo "==> Building CLI..."
-cargo build --release -p cli
+cargo build --release -p rplan-cli
 
 echo "==> Building server..."
 cargo build --release -p cli-server

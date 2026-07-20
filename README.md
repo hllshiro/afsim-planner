@@ -1,6 +1,6 @@
-# cli
+# rplan-cli
 
-[![CI](https://github.com/hllshiro/afsim-planner/actions/workflows/release.yml/badge.svg)](https://github.com/hllshiro/afsim-planner/actions/workflows/release.yml)
+[![CI](https://github.com/hllshiro/simple-router-planner/actions/workflows/release.yml/badge.svg)](https://github.com/hllshiro/simple-router-planner/actions/workflows/release.yml)
 
 **AFSIM 战前部署 3D 航路规划 CLI 引擎** — 专为 AFSIM（Advanced Framework for Simulation, Integration, and Modeling）战前静态筹划场景设计的轻量级、确定性三维避障航路规划工具。宏观拓扑路由 + 安全飞行走廊 + 加权 A* 三层分级架构，百公里级密集障碍绕行毫秒级响应。通过标准输入输出 JSON 管道与前端标绘系统集成。
 
@@ -21,22 +21,22 @@
 ### 从源码编译
 
 ```bash
-git clone https://github.com/hllshiro/afsim-planner.git
-cd afsim-planner
+git clone https://github.com/hllshiro/simple-router-planner.git
+cd simple-router-planner
 cargo build --release
 ```
 
-二进制文件位于 `target/release/cli`。
+二进制文件位于 `target/release/rplan-cli`。
 
 ### 预编译二进制
 
-前往 [Releases](https://github.com/hllshiro/afsim-planner/releases) 页面下载 Linux musl / Windows MSVC 静态链接版本。
+前往 [Releases](https://github.com/hllshiro/simple-router-planner/releases) 页面下载 Linux musl / Windows MSVC 静态链接版本。
 
 ## 使用
 
 ```bash
 # 管道调用
-cat task_request.json | ./target/release/cli > path_result.json
+cat task_request.json | ./target/release/rplan-cli > path_result.json
 
 # 零障碍直航
 echo '{
@@ -47,7 +47,7 @@ echo '{
     "target": {"center": [5000, 0, 500], "radius": 100}
   },
   "environment": {"radars": [], "no_fly_zones": []}
-}' | ./target/release/cli
+}' | ./target/release/rplan-cli
 ```
 
 ## 输入格式

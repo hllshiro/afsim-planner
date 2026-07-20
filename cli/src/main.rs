@@ -3,11 +3,11 @@ use std::time::Instant;
 
 use rand::Rng;
 
-use cli::config::{
+use rplan_cli::config::{
     InputConfig, OutputSuccess, Point3D, Diagnostics, Summary, Waypoint, WaypointType,
 };
-use cli::error::{ErrorCode, ErrorDetail, OutputFailed};
-use cli::solver::AStarSolver;
+use rplan_cli::error::{ErrorCode, ErrorDetail, OutputFailed};
+use rplan_cli::solver::AStarSolver;
 
 fn main() {
     // 1. Capture full JSON payload from stdin
@@ -81,7 +81,7 @@ fn main() {
         && start.distance_2d(&target_center) > macro_threshold
     {
         let safety_margin = input.vehicle.min_turn_radius * 2.0;
-        let router = cli::macro_router::MacroRouter::new(
+        let router = rplan_cli::macro_router::MacroRouter::new(
             &input.environment.radars,
             &input.environment.no_fly_zones,
             safety_margin,

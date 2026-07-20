@@ -1,4 +1,4 @@
-# AGENTS.md — rnav (AFSIM Planner)
+# AGENTS.md — rnav (Simple Router Planner)
 
 ## Project structure
 
@@ -14,7 +14,7 @@ Cargo workspace (`Cargo.toml` at root): `members = ["cli", "demo/server"]`.
 
 ```bash
 cargo build --release              # build entire workspace
-cargo build --release -p cli       # build CLI only
+cargo build --release -p rplan-cli       # build CLI only
 cargo test --release               # test entire workspace (inline #[cfg(test)], no separate test crate)
 ```
 
@@ -34,7 +34,7 @@ Tests are inline `#[cfg(test)]` modules inside source files. The `test/` and `te
 
 | File | Role |
 |------|------|
-| `cli/src/lib.rs` | Crate root — re-exports modules so `demo/server` can depend on `cli` as a library (build-ordering only; server spawns the binary, not the library). |
+| `cli/src/lib.rs` | Crate root — re-exports modules so `demo/server` can depend on `rplan-cli` as a library (build-ordering only; server spawns the binary, not the library). |
 | `cli/src/main.rs` | stdin → parse → validate → seed mgmt → segment loop → prune → stdout. All I/O. |
 | `cli/src/config.rs` | Serde `Deserialize`/`Serialize` structs — the data contract. Has `#![allow(dead_code)]` because some output structs are only serialized. |
 | `cli/src/error.rs` | Error variants + failure output struct. |
@@ -56,7 +56,7 @@ The CLI binary is a deterministic pipeline: **stdin JSON → stdout JSON, no dis
 
 ## Server quirks
 
-- Server spawns the CLI **binary** (`./target/release/cli`) as a subprocess — must be built first.
+- Server spawns the CLI **binary** (`./target/release/rplan-cli`) as a subprocess — must be built first.
 - Only one endpoint: `POST /api/plan`, accepts full `InputConfig` JSON, returns `PlanResult` JSON.
 - No CORS middleware configured — the Vite dev server's `/api` proxy side-steps this.
 

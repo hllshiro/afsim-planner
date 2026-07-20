@@ -25,9 +25,9 @@ async fn plan_route(Json(payload): Json<Value>) -> Json<Value> {
 }
 
 fn run_cli(input_json: &str) -> Result<Value, String> {
-    // Binary lives at <workspace_root>/target/release/cli
+    // Binary lives at <workspace_root>/target/release/rplan-cli
     // Server's cwd is workspace_root when launched via `cargo run -p cli-server`
-    let mut child = Command::new("./target/release/cli")
+    let mut child = Command::new("./target/release/rplan-cli")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
