@@ -81,7 +81,7 @@ fn main() {
         && start.distance_2d(&target_center) > macro_threshold
     {
         let safety_margin = input.vehicle.min_turn_radius * 2.0;
-        let router = macro_router::MacroRouter::new(
+        let router = afsim_planner::macro_router::MacroRouter::new(
             &input.environment.radars,
             &input.environment.no_fly_zones,
             safety_margin,
