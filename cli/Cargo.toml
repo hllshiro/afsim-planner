@@ -1,5 +1,5 @@
 [package]
-name = "afsim-planner"
+name = "cli"
 version = "0.4.0"
 edition = "2021"
 description = "AFSIM pre-mission 3D route planning CLI engine with deterministic A* and kinematic pruning"
@@ -8,10 +8,10 @@ license = "MIT"
 
 [lib]
 path = "src/lib.rs"
-name = "afsim_planner"
+name = "cli"
 
 [[bin]]
-name = "afsim-planner"
+name = "cli"
 path = "src/main.rs"
 
 [dependencies]

@@ -1,4 +1,4 @@
-# afsim-planner
+# cli
 
 [![CI](https://github.com/hllshiro/afsim-planner/actions/workflows/release.yml/badge.svg)](https://github.com/hllshiro/afsim-planner/actions/workflows/release.yml)
 
@@ -26,7 +26,7 @@ cd afsim-planner
 cargo build --release
 ```
 
-二进制文件位于 `target/release/afsim-planner`。
+二进制文件位于 `target/release/cli`。
 
 ### 预编译二进制
 
@@ -36,7 +36,7 @@ cargo build --release
 
 ```bash
 # 管道调用
-cat task_request.json | ./target/release/afsim-planner > path_result.json
+cat task_request.json | ./target/release/cli > path_result.json
 
 # 零障碍直航
 echo '{
@@ -47,7 +47,7 @@ echo '{
     "target": {"center": [5000, 0, 500], "radius": 100}
   },
   "environment": {"radars": [], "no_fly_zones": []}
-}' | ./target/release/afsim-planner
+}' | ./target/release/cli
 ```
 
 ## 输入格式

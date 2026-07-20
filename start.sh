@@ -3,14 +3,14 @@ set -e
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-echo "==> Building afsim-planner CLI..."
-cargo build --release -p afsim-planner
+echo "==> Building CLI..."
+cargo build --release -p cli
 
 echo "==> Building server..."
-cargo build --release -p afsim-planner-server
+cargo build --release -p cli-server
 
 echo "==> Starting server on :3001..."
-cargo run --release -p afsim-planner-server &
+cargo run --release -p cli-server &
 SERVER_PID=$!
 
 # Give server a moment to bind

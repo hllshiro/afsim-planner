@@ -1,4 +1,4 @@
-# AGENTS.md — afsim-planner
+# AGENTS.md — cli
 
 ## Build, test, run
 
