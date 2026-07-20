@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **重组项目目录结构** — 将demo代码从根目录移入 `demo/`，更新workspace配置和文档路径
 
+- **完善 AGENTS.md** — 新增构建注意事项、宏路由触发阈值和mimocode workflow命令说明
+
 ## [0.4.0] — 2026-07-17
 
 ### Added
