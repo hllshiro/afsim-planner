@@ -137,7 +137,7 @@ echo '{
 ## 架构
 
 ```
-src/
+cli/src/
 ├── main.rs         # stdin/stdout 管道 + 种子管理 + 分段编排 + 宏观路由触发
 ├── error.rs        # 错误码定义
 ├── config.rs       # 输入/输出 JSON 数据契约 + 3D 向量基元
@@ -158,6 +158,19 @@ src/
 ## 已知限制
 
 - `TargetZone.radius` 未用于提前终止（目前以 target center 的一个网格分辨率距离为终止条件）
+
+## Demo
+
+`demo/` 目录包含一个可选的 Web 可视化演示：
+
+- **Axum HTTP 服务**（`demo/server/`）— 将 CLI 二进制封装为 `POST /api/plan` REST 接口
+- **React 3D 前端**（`demo/web/`）— Three.js 三维场景渲染，支持雷达、禁飞区可视化
+
+启动演示：
+
+```bash
+./demo/start.sh
+```
 
 ## License
 

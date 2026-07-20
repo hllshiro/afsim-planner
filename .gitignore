@@ -1,15 +1,15 @@
-/target
 *.deb
 .cargo/config.toml
 
-/docs/compose
-/docs/plan
-/.mimocode
+compose/
+plan/
+.mimocode/
 mimocode.json
 
-/web/node_modules
-/web/dist
+node_modules/
 
-/test
-/tests
-/cli/tests
+dist/
+target/
+
+test/
+tests/
